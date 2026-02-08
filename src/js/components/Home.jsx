@@ -1,43 +1,67 @@
 import React from "react";
+import { useState } from 'react';
 
-import { useState, useEffect } from 'react';
+// ✅ Se consolidó los imports de React en una sola línea
+// ✅ Se eliminó useEffect ya que no se estaba usando
 
 function MiTodoList() {
   const [tareas, setTareas] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [errores, setErrores] = useState('');
 
+  // ✅ Se añadió validación para no agregar tareas vacías
   function agregarTarea() {
-    setTareas([...tareas, {texto: inputValue, completada:false, isEditing:false}])
-    setInputValue("")
-  } 
+    if (inputValue.trim() === '') {
+      setErrores('No puedes agregar una tarea vacía');
+      return;
+    }
+    setTareas([...tareas, {texto: inputValue, completada: false, isEditing: false}]);
+    setInputValue('');
+    setErrores('');
+  }
 
   const eliminarTarea = (indiceObjetivo) => {
     const nuevaLista = tareas.filter((_, indexActual)=> indexActual !== indiceObjetivo);
     setTareas(nuevaLista);
   }
+  // 🔧 IMPORTANTE: No mutamos el objeto directamente (tarea.completada = ...)
+  // Creamos una copia nueva del objeto para mantener la inmutabilidad de React
   const completarTarea = (indiceObjetivo) => {
     const nuevaClase = tareas.map((tarea, index) => {
-      if (index === indiceObjetivo){
-        tarea.completada=!tarea.completada
+      if (index === indiceObjetivo) {
+        return { ...tarea, completada: !tarea.completada };
       }
-      return tarea
-    })
+      return tarea;
+    });
     setTareas(nuevaClase);
   };
-  const EditarTarea = (id, nuevoTexto) =>{
-     
-  }
-  const validarTarea = () => {
-    if (inputValue === "") {
-      setErrores("error")
-      return false
-    }
-    else agregarTarea() , setErrores("")
-  }
+  // ✅ Implementación de la función para editar tareas
+  const toggleEditarTarea = (indiceObjetivo) => {
+    const nuevaLista = tareas.map((tarea, index) => {
+      if (index === indiceObjetivo) {
+        return { ...tarea, isEditing: !tarea.isEditing };
+      }
+      return tarea;
+    });
+    setTareas(nuevaLista);
+  };
 
-  // ❓ TODO: Implementar funciones:
-  // - editarTarea(id, nuevoTexto)
+  const guardarEdicion = (indiceObjetivo, nuevoTexto) => {
+    if (nuevoTexto.trim() === '') {
+      setErrores('El texto de la tarea no puede estar vacío');
+      return;
+    }
+    const nuevaLista = tareas.map((tarea, index) => {
+      if (index === indiceObjetivo) {
+        return { ...tarea, texto: nuevoTexto, isEditing: false };
+      }
+      return tarea;
+    });
+    setTareas(nuevaLista);
+    setErrores('');
+  };
+
+  // 🔧 Se simplificó la validación - ya se hace dentro de agregarTarea()
 
   return (
     <div className="container">
@@ -50,7 +74,7 @@ function MiTodoList() {
           onChange={(e) => setInputValue(e.target.value)}
           placeholder="Nueva tarea..."
         />
-        <button onClick={() => {validarTarea()}}>
+        <button onClick={agregarTarea}>
           Agregar
         </button>
       </div>
@@ -66,15 +90,37 @@ function MiTodoList() {
 
       {/* Lista */}
       <ul className="lista">
-        {tareas.map((tarea , index)=>
+        {tareas.map((tarea, index) => (
           <li key={index} className={tarea.completada ? 'completada' : ''}>
-            {tarea.isEditing && <input onChange={handleEdit} value={tarea.texto}/>}
-            {!tarea.isEditing && <span>{tarea.texto}</span>}
-            <button onClick={() => {completarTarea(index)}}>✓</button>
-            <button onClick={() => {EditarTarea()}}>✏️</button>
-            <button onClick={() => {eliminarTarea(index)}}>✕</button>
+            {tarea.isEditing ? (
+              <input
+                type="text"
+                value={tarea.texto}
+                onChange={(e) => {
+                  // Actualizamos el texto mientras se edita
+                  const nuevaLista = tareas.map((t, i) => 
+                    i === index ? { ...t, texto: e.target.value } : t
+                  );
+                  setTareas(nuevaLista);
+                }}
+                onKeyPress={(e) => {
+                  // Al presionar Enter, guardamos la edición
+                  if (e.key === 'Enter') {
+                    guardarEdicion(index, tarea.texto);
+                  }
+                }}
+                onBlur={() => guardarEdicion(index, tarea.texto)}
+              />
+            ) : (
+              <span>{tarea.texto}</span>
+            )}
+            <button onClick={() => completarTarea(index)}>✓</button>
+            <button onClick={() => toggleEditarTarea(index)}>
+              {tarea.isEditing ? '💾' : '✏️'}
+            </button>
+            <button onClick={() => eliminarTarea(index)}>✕</button>
           </li>
-        )}
+        ))}
       </ul>
 
       {tareas.length === 0 && (
